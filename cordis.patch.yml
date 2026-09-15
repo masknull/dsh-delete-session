@@ -1,0 +1,7 @@
+# dsh-delete-session — mounts one Host row that serves the deletion route and
+# carries the Web client bundle. It adds no service and disables no official
+# row: the row name MUST equal the package name so dsh-client-modules can
+# resolve '<row-name>/package.json' and pick up dsh.client.
+- insert:
+    - id: dsh-delete-session
+      name: 'dsh-delete-session'

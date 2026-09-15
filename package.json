@@ -1,0 +1,59 @@
+{
+  "name": "dsh-delete-session",
+  "version": "0.1.0",
+  "description": "Permanently delete a single session from the DeepSeek Harness Web sidebar - one extra entry in the session row menu, with zero plugin-row takeover.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "scripts",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek",
+    "session",
+    "session-management",
+    "delete-session",
+    "permanent-delete",
+    "conversation",
+    "privacy",
+    "web"
+  ],
+  "homepage": "https://github.com/masknull/dsh-delete-session#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/masknull/dsh-delete-session.git"
+  },
+  "bugs": {
+    "url": "https://github.com/masknull/dsh-delete-session/issues"
+  },
+  "author": "masknull",
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "check": "node --check src/index.js && node --check src/host/delete-session.mjs && node --check src/host/session-cleanup.mjs && node --check lib/client.js",
+    "verify:ui": "node scripts/verify-ui.mjs"
+  }
+}
