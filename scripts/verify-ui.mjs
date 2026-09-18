@@ -3,6 +3,11 @@
 // Drives the running DSH Web UI over CDP and checks the injection seams.
 // It NEVER confirms a deletion: it opens the confirm dialog and cancels it.
 //
+// Regression coverage: the session-row menu, the view-options (grouping) menu
+// and the workspace-row menu are all the same `Menu` portal under
+// document.body. Injection must appear in the session-row menu only — never in
+// the other two (the historical "delete entry leaks into every menu" bug).
+//
 // Usage:
 //   1. Start dsh web with CDP enabled:
 //        $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9222'
@@ -18,6 +23,42 @@ const PROBE = `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const out = { checks: [] };
   const check = (name, ok, detail) => out.checks.push({ name, ok, detail });
+
+  const openMenus = () => [...document.querySelectorAll('[role="menu"]')];
+  const injectedCount = () => document.querySelectorAll('[${ITEM_ATTR}]').length;
+  const itemTexts = (menu) => menu ? [...menu.querySelectorAll('[role="menuitem"]')].map(b => b.textContent.trim()) : [];
+
+  async function openByAria(prefix) {
+    const btn = [...document.querySelectorAll('button[aria-label]')]
+      .find(b => (b.getAttribute('aria-label') || '').startsWith(prefix));
+    if (!btn) return null;
+    btn.click();
+    await sleep(600);
+    const menus = openMenus();
+    return menus.length ? menus[menus.length - 1] : null;
+  }
+
+  async function closeAll() {
+    for (let i = 0; i < 3; i++) {
+      if (!openMenus().length) return;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await sleep(350);
+    }
+  }
+
+  // ---- cross-menu regression: other official menus must stay clean --------
+  // Open a session-row menu first (primes any legacy click-cache state), then
+  // open the two non-session menus: neither may carry the injected entry.
+  let menu = await openByAria('视图选项');
+  check('regress: 视图选项(分组方式)菜单无注入项', menu !== null && menu.querySelector('[${ITEM_ATTR}]') === null,
+    menu ? itemTexts(menu).join(' | ') : 'menu not found');
+  await closeAll();
+
+  menu = await openByAria('工作区“');
+  check('regress: 工作区行菜单无注入项', menu !== null && menu.querySelector('[${ITEM_ATTR}]') === null,
+    menu ? itemTexts(menu).join(' | ') : 'menu not found');
+  await closeAll();
+  check('regress: 关闭全部菜单后注入项总数为 0', injectedCount() === 0, String(injectedCount()));
 
   // ---- locate a session row through the fiber seam -------------------------
   const rows = [...document.querySelectorAll('[role="treeitem"]')];
@@ -43,7 +84,7 @@ const PROBE = `(async () => {
   // ---- open the official menu and look for the injected entry --------------
   anchor.click();
   await sleep(600);
-  const menu = document.querySelector('[role="menu"]');
+  menu = document.querySelector('[role="menu"]');
   check('menu: 官方菜单已打开', menu !== null, menu ? 'ok' : 'no [role=menu]');
   const items = menu ? [...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent.trim()) : [];
   out.menuItems = items;
@@ -75,6 +116,12 @@ const PROBE = `(async () => {
     const modalAfter = document.querySelector('[${MODAL_ATTR}]');
     check('modal: 取消后弹窗关闭', cancel !== null && modalAfter !== null && modalAfter.textContent.trim() === '', 'ok');
   }
+
+  // ---- reopen the non-session menu AFTER a session menu cycle --------------
+  menu = await openByAria('视图选项');
+  check('regress: 会话菜单用过之后，视图选项菜单仍无注入项', menu !== null && menu.querySelector('[${ITEM_ATTR}]') === null,
+    menu ? itemTexts(menu).join(' | ') : 'menu not found');
+  await closeAll();
 
   return JSON.stringify(out);
 })()`

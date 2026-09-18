@@ -63,8 +63,8 @@ DSH 目前**没有公开的会话删除 API**：`ctx.workspaceRegistry` 只有 `
 
 因此本插件不去 fork 官方 UI，而是走两条**在真实运行界面上验证过**的 DOM 缝：
 
-1. **会话行 → React fiber**：会话行是 `[role="treeitem"]`，顺着 fiber 链向上可拿到 `SessionNodeItem` 的 `memoizedProps`，其中 `node.id` 即 sessionId（另有官方 `onRename` / `onFork` / `onArchive` 仅作形状判据）。
-2. **打开中的菜单弹层**：菜单是 `[role="menu"]` 的 portal，项为 `[role="menuitem"]`。当某个已解析出会话 id 的行打开菜单时，追加一项。**类名在运行时从当前渲染中的官方项复制**，所以即使构建哈希变化也能继承真实样式；图标用的是从本机前端产物里取出的官方 `IconTrashOutline16` 几何，与原生三个图标同族。
+1. **打开中的菜单 → React fiber 归属**：会话行菜单、视图选项（分组方式/排序）菜单、工作区行菜单都是同一个 `Menu` portal 组件，共享 `document.body` 下同一个 `[role="menu"]` DOM——单看 DOM 结构无法区分归属。但打开的菜单元素沿 React fiber 链仍能回到宿主组件：只有宿主为 `SessionNodeItem`（`memoizedProps` 携带 `node.id` + `onRename`，该形状在整个 client 树中唯一）的菜单才会被注入。sessionId 与标题在注入时从这些 props 解析，不存在"最后点击行"缓存，也就不会过期错删。
+2. **菜单项本身**：**类名在运行时从当前渲染中的官方项复制**，所以即使构建哈希变化也能继承真实样式；图标用的是从本机前端产物里取出的官方 `IconTrashOutline16` 几何，与原生三个图标同族。
 
 两条缝任一消失（官方将来改版），表现是**菜单里不再出现该项**——绝不会退化成"猜一个 sessionId 去删"。
 
@@ -122,8 +122,8 @@ probe.remove();
 
 排查顺序：
 
-1. 会话行是否仍是 `[role="treeitem"]`，其 fiber 链上是否还有带 `node.id` + `onRename` 的 props；
-2. 菜单是否仍是 `[role="menu"]` / `[role="menuitem"]`；
+1. 打开的菜单是否仍是 `[role="menu"]`，其 fiber 链上是否还有带 `node.id` + `onRename` 的 props（即它是否仍是会话行的菜单）；
+2. 菜单项是否仍是 `[role="menuitem"]`；
 3. React 是否仍把 fiber 挂在 DOM 节点上（`__reactFiber$` / `__reactInternalInstance$` 前缀）。
 
 ---

@@ -63,8 +63,8 @@ DSH currently exposes **no public API for deleting a session**: `ctx.workspaceRe
 
 So instead of forking the official UI, this plugin uses two DOM seams that were verified live against the running Web UI:
 
-1. **Session row → React fiber.** A session row is `[role="treeitem"]`. Walking up its fiber chain reaches `SessionNodeItem`, whose `memoizedProps` carry `node` (with the session id) plus the official `onRename` / `onFork` / `onArchive` callbacks, used here purely as a shape test.
-2. **The open menu popup.** The menu is a `[role="menu"]` portal whose items are `[role="menuitem"]`. When the menu is open for a row we just resolved, one extra item is appended. **Class names are copied from a live official item at runtime**, so the entry inherits the real styling even though the generated class hashes change between builds. The icon is the official `IconTrashOutline16` geometry lifted from the shipped frontend bundle, so it matches the three native icons.
+1. **Open menu → React fiber ownership.** The session-row menu, the view-options (grouping) menu and the workspace-row menu are all the same `Menu` portal component sharing one `[role="menu"]` DOM under `document.body` — DOM structure alone cannot tell them apart. The open menu element's React fiber chain still reaches its owner, and only a `SessionNodeItem` owner (memoizedProps carrying `node.id` plus `onRename`, a shape unique in the client tree) is eligible for injection. The session id and title are resolved from those props at injection time; there is no cached "last clicked row" state that could go stale and act on the wrong session.
+2. **The menu items themselves.** Class names are copied from a live official item at runtime, so the entry inherits the real styling even though the generated class hashes change between builds. The icon is the official `IconTrashOutline16` geometry lifted from the shipped frontend bundle, so it matches the three native icons.
 
 If either seam is gone (a future official UI change), the entry is simply never injected — the plugin never falls back to guessing a session id.
 
@@ -116,7 +116,7 @@ The plugin depends on the two DOM seams above. If an official UI change removes 
 
 Check, in order:
 
-1. Is a session row still `[role="treeitem"]`, and does its fiber chain still reach props carrying `node.id` plus `onRename`?
+1. Is the open menu still a `[role="menu"]` element whose fiber chain still reaches props carrying `node.id` plus `onRename` (the session row's menu)?
 2. Is the popup still `[role="menu"]` with `[role="menuitem"]` items?
 3. Does React still attach fibers to DOM nodes (`__reactFiber$` / `__reactInternalInstance$` prefixes)?
 
