@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.js",
     "./client": "./lib/client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "src",
@@ -18,7 +19,8 @@
     "README.zh.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
-    "assets"
+    "assets",
+    "locale/*.json"
   ],
   "dsh": {
     "bundle": {

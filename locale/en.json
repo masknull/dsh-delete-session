@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Delete Session",
+    "description": "Add a delete entry to the official sidebar session row menu: permanently remove that session's conversation, statistics, and on-disk files."
+  }
+}
