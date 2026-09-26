@@ -69,7 +69,7 @@ const PROBE = `(async () => {
     let f = el[fk], hops = 0;
     while (f && hops < 80) {
       const p = f.memoizedProps;
-      if (p && p.node && typeof p.node.id === 'string' && typeof p.onRename === 'function') { target = { el, props: p }; break; }
+      if (p && p.node && typeof p.node.id === 'string' && (typeof p.onRenameRequest === 'function' || typeof p.onRename === 'function')) { target = { el, props: p }; break; }
       f = f.return; hops++;
     }
     if (target) break;
@@ -115,6 +115,23 @@ const PROBE = `(async () => {
     if (cancel) { cancel.click(); await sleep(400); }
     const modalAfter = document.querySelector('[${MODAL_ATTR}]');
     check('modal: 取消后弹窗关闭', cancel !== null && modalAfter !== null && modalAfter.textContent.trim() === '', 'ok');
+  }
+
+  // ---- shortcut: Ctrl+Shift+D opens the confirm dialog for the open session
+  // Dispatches the host-admitted binding for session.delete. The dialog is
+  // opened and cancelled again — nothing is ever deleted.
+  const pressed = new KeyboardEvent('keydown', { key: 'D', code: 'KeyD', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true });
+  document.dispatchEvent(pressed);
+  await sleep(600);
+  const shortcutModal = document.querySelector('[${MODAL_ATTR}]');
+  check('shortcut: Ctrl+Shift+D 弹出确认框', shortcutModal !== null && shortcutModal.textContent.includes('永久删除'),
+    shortcutModal ? shortcutModal.textContent.slice(0, 60) : 'no modal');
+  check('shortcut: 组合键被宿主标记为已处理', pressed.defaultPrevented, pressed.defaultPrevented ? 'preventDefault called' : 'not prevented');
+  if (shortcutModal) {
+    const cancelShortcut = [...shortcutModal.querySelectorAll('button')].find((b) => b.textContent.trim() === '取消');
+    if (cancelShortcut) { cancelShortcut.click(); await sleep(400); }
+    const modalAfterShortcut = document.querySelector('[${MODAL_ATTR}]');
+    check('shortcut: 取消后弹窗关闭', cancelShortcut !== null && modalAfterShortcut !== null && modalAfterShortcut.textContent.trim() === '', 'ok');
   }
 
   // ---- reopen the non-session menu AFTER a session menu cycle --------------
