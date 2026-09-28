@@ -1,6 +1,6 @@
 {
   "name": "dsh-delete-session",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Permanently delete a single session from the DeepSeek Harness Web sidebar - one extra entry in the session row menu, with zero plugin-row takeover.",
   "type": "module",
   "main": "src/index.js",
@@ -58,7 +58,8 @@
   },
   "scripts": {
     "check": "node --check src/index.js && node --check src/host/delete-session.mjs && node --check src/host/session-cleanup.mjs && node --check lib/client.js",
-    "verify:ui": "node scripts/verify-ui.mjs"
+    "verify:ui": "node scripts/verify-ui.mjs",
+    "verify:postdelete": "node scripts/verify-postdelete.mjs"
   },
   "icon": "./assets/icon.svg"
 }
