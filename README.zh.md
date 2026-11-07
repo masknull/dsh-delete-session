@@ -59,14 +59,13 @@ dsh plugin --profile web remove dsh-delete-session
 
 ## 工作原理
 
-DSH 目前**没有公开的会话删除 API**：`ctx.workspaceRegistry` 只有 `archiveSession`（软删除，仅打标记）和 `deleteKnown`（删的是**工作区**不是会话）；`api-session-controller` 的 remote 面有 create / rename / fork / list / search，**没有 delete**。而且会话行的 `⋯` 菜单**不是扩展点**——菜单项硬编码在官方 `ui-workspace` 的 `SessionNodeItem` 组件里，会话行内部没有任何 slot。
+DSH 目前**没有公开的会话删除 API**：`ctx.workspaceRegistry` 只有 `archiveSession`（软删除，仅打标记）和 `deleteKnown`（删的是**工作区**不是会话）；`api-session-controller` 的 remote 面有 create / rename / fork / list / search，**没有 delete**。0.2.2-rc.1 起，官方 `@deepseek-ai/dsh-client-ui-context-menu` 把会话右键菜单变成了扩展点。
 
-因此本插件不去 fork 官方 UI，而是走两条**在真实运行界面上验证过**的 DOM 缝：
+因此本插件在官方 context-menu 注册表上注册一个 `session` 目标的贡献项：目标在右键瞬间捕获 `{ sessionId, displayTitle }`，不存在"最后点击行"缓存，也就不会过期错删。
 
-1. **打开中的菜单 → React fiber 归属**：会话行菜单、视图选项（分组方式/排序）菜单、工作区行菜单都是同一个 `Menu` portal 组件，共享 `document.body` 下同一个 `[role="menu"]` DOM——单看 DOM 结构无法区分归属。但打开的菜单元素沿 React fiber 链仍能回到宿主组件：只有宿主为 `SessionNodeItem`（`memoizedProps` 携带 `node.id` + `onRename`，该形状在整个 client 树中唯一）的菜单才会被注入。sessionId 与标题在注入时从这些 props 解析，不存在"最后点击行"缓存，也就不会过期错删。
-2. **菜单项本身**：**类名在运行时从当前渲染中的官方项复制**，所以即使构建哈希变化也能继承真实样式；图标用的是从本机前端产物里取出的官方 `IconTrashOutline16` 几何，与原生三个图标同族。
+动作通过 `commandId: 'session.delete'` 绑定本插件注册的快捷键，键帽随用户的快捷键设置实时显示；样式用官方 `danger` 红色，图标是官方 `IconTrashOutline16` 几何，经带键的 `contextMenu.icon` Slot 贡献。
 
-两条缝任一消失（官方将来改版），表现是**菜单里不再出现该项**——绝不会退化成"猜一个 sessionId 去删"。
+贡献项未出现（官方将来改版），表现是**菜单里不再出现该项**——绝不会退化成"猜一个 sessionId 去删"。
 
 ### Host 侧
 
@@ -118,13 +117,13 @@ probe.remove();
 
 ## 失效表现与排查
 
-本插件依赖上面两条 DOM 缝。官方若改动它们，表现是**菜单里不再出现「删除会话」**——不会误删任何数据。
+本插件依赖官方 context-menu 注册表。它若不可用，表现是**菜单里不再出现「删除会话」**——不会误删任何数据。
 
 排查顺序：
 
-1. 打开的菜单是否仍是 `[role="menu"]`，其 fiber 链上是否还有带 `node.id` + `onRename` 的 props（即它是否仍是会话行的菜单）；
-2. 菜单项是否仍是 `[role="menuitem"]`；
-3. React 是否仍把 fiber 挂在 DOM 节点上（`__reactFiber$` / `__reactInternalInstance$` 前缀）。
+1. 运行中的 DSH 是否 ≥ 0.2.2-rc.1（该版本起才附带 `@deepseek-ai/dsh-client-ui-context-menu`）；
+2. 插件是否启用、client bundle 是否加载——否则 DevTools 控制台会出现 `dsh-delete-session: contextMenus registration refused` 警告；
+3. 当前组合是否挂载了注册表的 client 插件（官方 Web 应用默认挂载，自组合可能移除）。
 
 ---
 

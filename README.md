@@ -59,14 +59,11 @@ All that was needed was the delete action. Session-management plugins of this ki
 
 ## How it works
 
-DSH currently exposes **no public API for deleting a session**: `ctx.workspaceRegistry` offers `archiveSession` (soft, marker-only) and `deleteKnown` (which deletes a *workspace*, not a session), and the `api-session-controller` remote surface has create / rename / fork / list / search — but no delete. On top of that, the session-row `⋯` menu is **not an extension point**: its items are hardcoded inside the official `ui-workspace` `SessionNodeItem`, and no slot exists anywhere inside a session row.
+DSH currently exposes **no public API for deleting a session**: `ctx.workspaceRegistry` offers `archiveSession` (soft, marker-only) and `deleteKnown` (which deletes a *workspace*, not a session), and the `api-session-controller` remote surface has create / rename / fork / list / search — but no delete. Since 0.2.2-rc.1, the official `@deepseek-ai/dsh-client-ui-context-menu` makes the session context menu an extension point.
 
-So instead of forking the official UI, this plugin uses two DOM seams that were verified live against the running Web UI:
+Since dsh 0.2.2-rc.1 the entry is contributed through the official context-menu registry (`@deepseek-ai/dsh-client-ui-context-menu`): one `session`-target contribution whose target captures `{ sessionId, displayTitle }` at gesture time — there is no cached "last clicked row" state that could go stale and act on the wrong session.
 
-1. **Open menu → React fiber ownership.** The session-row menu, the view-options (grouping) menu and the workspace-row menu are all the same `Menu` portal component sharing one `[role="menu"]` DOM under `document.body` — DOM structure alone cannot tell them apart. The open menu element's React fiber chain still reaches its owner, and only a `SessionNodeItem` owner (memoizedProps carrying `node.id` plus `onRename`, a shape unique in the client tree) is eligible for injection. The session id and title are resolved from those props at injection time; there is no cached "last clicked row" state that could go stale and act on the wrong session.
-2. **The menu items themselves.** Class names are copied from a live official item at runtime, so the entry inherits the real styling even though the generated class hashes change between builds. The icon is the official `IconTrashOutline16` geometry lifted from the shipped frontend bundle, so it matches the three native icons.
-
-If either seam is gone (a future official UI change), the entry is simply never injected — the plugin never falls back to guessing a session id.
+The action binds `commandId: 'session.delete'`, so the overlay renders the user's live Ctrl+Shift+D binding from the shortcuts catalog; it uses the official `danger` styling, and the icon is the official `IconTrashOutline16` geometry contributed through the keyed `contextMenu.icon` Slot.
 
 ### Host side
 
@@ -112,13 +109,13 @@ Two traps learned the hard way, both documented in `README.zh.md`:
 
 ## Troubleshooting
 
-The plugin depends on the two DOM seams above. If an official UI change removes either one, the symptom is **the entry missing from the menu** — never a wrong deletion.
+The entry rides the official context-menu registry. If it ever goes missing, the symptom is **the entry missing from the menu** — never a wrong deletion.
 
 Check, in order:
 
-1. Is the open menu still a `[role="menu"]` element whose fiber chain still reaches props carrying `node.id` plus `onRename` (the session row's menu)?
-2. Is the popup still `[role="menu"]` with `[role="menuitem"]` items?
-3. Does React still attach fibers to DOM nodes (`__reactFiber$` / `__reactInternalInstance$` prefixes)?
+1. The running DSH is 0.2.2-rc.1 or newer (that release ships `@deepseek-ai/dsh-client-ui-context-menu`);
+2. The plugin is enabled and its client bundle loaded — the DevTools console shows a `dsh-delete-session: contextMenus registration refused` warning otherwise;
+3. The composition mounts the registry's client plugin (the shipped Web app does; a custom composition may have dropped it).
 
 ---
 
