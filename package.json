@@ -1,7 +1,7 @@
 {
   "name": "dsh-delete-session",
-  "version": "0.1.5",
-  "description": "Permanently delete a single session from the DeepSeek Harness Web sidebar - one extra entry in the session row menu, with zero plugin-row takeover.",
+  "version": "0.1.6",
+  "description": "Permanently delete a single session from the DeepSeek Harness Web sidebar - one extra entry in the official session context menu, with zero plugin-row takeover.",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -27,7 +27,10 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "platform": "web"
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-context-menu"
+      ]
     }
   },
   "keywords": [
@@ -54,7 +57,7 @@
   "license": "MIT",
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
-    "dsh": ">=0.1.7-rc.2"
+    "dsh": ">=0.2.2-rc.1"
   },
   "scripts": {
     "check": "node --check src/index.js && node --check src/host/delete-session.mjs && node --check src/host/session-cleanup.mjs && node --check lib/client.js",
