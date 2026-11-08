@@ -5,8 +5,11 @@
 //
 // Regression coverage: the session-row menu, the view-options (grouping) menu
 // and the workspace-row menu are all the same `Menu` portal under
-// document.body. Injection must appear in the session-row menu only — never in
-// the other two (the historical "delete entry leaks into every menu" bug).
+// document.body. The delete entry must appear in the session-row menu only —
+// never in the other two (the historical "delete entry leaks into every menu"
+// bug). Clicking the entry must open the confirm dialog, never the registry's
+// 「操作失败，请重试」toast (the 0.1.6 regression: resolve() re-unwrapped an
+// already-unwrapped target and the click-time run() threw on undefined).
 //
 // Usage:
 //   1. Start dsh web with CDP enabled:
@@ -16,8 +19,8 @@
 // Exit code 0 = all checks passed, 1 = at least one check failed.
 
 const CDP = process.env.DSH_CDP || 'http://127.0.0.1:9222'
-const ITEM_ATTR = 'data-dsh-delete-session-item'
 const MODAL_ATTR = 'data-dsh-delete-session-modal'
+const ENTRY_LABEL = '删除会话'
 
 const PROBE = `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -25,8 +28,9 @@ const PROBE = `(async () => {
   const check = (name, ok, detail) => out.checks.push({ name, ok, detail });
 
   const openMenus = () => [...document.querySelectorAll('[role="menu"]')];
-  const injectedCount = () => document.querySelectorAll('[${ITEM_ATTR}]').length;
-  const itemTexts = (menu) => menu ? [...menu.querySelectorAll('[role="menuitem"]')].map(b => b.textContent.trim()) : [];
+  const menuItems = (menu) => menu ? [...menu.querySelectorAll('[role="menuitem"]')] : [];
+  const itemTexts = (menu) => menuItems(menu).map(b => b.textContent.trim());
+  const deleteEntries = (menu) => menuItems(menu).filter(b => b.textContent.trim().includes(ENTRY_LABEL));
 
   async function openByAria(prefix) {
     const btn = [...document.querySelectorAll('button[aria-label]')]
@@ -50,15 +54,14 @@ const PROBE = `(async () => {
   // Open a session-row menu first (primes any legacy click-cache state), then
   // open the two non-session menus: neither may carry the injected entry.
   let menu = await openByAria('视图选项');
-  check('regress: 视图选项(分组方式)菜单无注入项', menu !== null && menu.querySelector('[${ITEM_ATTR}]') === null,
+  check('regress: 视图选项(分组方式)菜单无删除项', menu !== null && deleteEntries(menu).length === 0,
     menu ? itemTexts(menu).join(' | ') : 'menu not found');
   await closeAll();
 
   menu = await openByAria('工作区“');
-  check('regress: 工作区行菜单无注入项', menu !== null && menu.querySelector('[${ITEM_ATTR}]') === null,
+  check('regress: 工作区行菜单无删除项', menu !== null && deleteEntries(menu).length === 0,
     menu ? itemTexts(menu).join(' | ') : 'menu not found');
   await closeAll();
-  check('regress: 关闭全部菜单后注入项总数为 0', injectedCount() === 0, String(injectedCount()));
 
   // ---- locate a session row through the fiber seam -------------------------
   const rows = [...document.querySelectorAll('[role="treeitem"]')];
@@ -88,11 +91,10 @@ const PROBE = `(async () => {
   check('menu: 官方菜单已打开', menu !== null, menu ? 'ok' : 'no [role=menu]');
   const items = menu ? [...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent.trim()) : [];
   out.menuItems = items;
-  check('inject: 菜单中出现「删除会话」', items.some((t) => t.includes('删除会话')), items.join(' | '));
+  check('menu: 会话菜单中出现「删除会话」', items.some((t) => t.includes(ENTRY_LABEL)), items.join(' | '));
 
-  const injected = menu ? menu.querySelector('[' + '${ITEM_ATTR}' + ']') : null;
-  check('inject: 注入项带标记属性', injected !== null, injected ? 'ok' : 'missing');
-  check('inject: 注入项为红色危险样式', injected !== null && !!injected.style.color, injected ? injected.style.color : 'n/a');
+  const injected = menu ? deleteEntries(menu)[0] : null;
+  check('menu: 删除项为危险红色样式', injected !== null && !!injected.style.color, injected ? injected.style.color : 'n/a');
 
   // ---- click it: the official menu must close and our dialog must open -----
   if (injected) {
@@ -100,6 +102,7 @@ const PROBE = `(async () => {
     await sleep(600);
     const menuAfter = document.querySelector('[role="menu"]');
     check('menu: 点击后官方菜单已收起', menuAfter === null, menuAfter ? 'still open' : 'closed');
+    check('menu: 点击后无「操作失败」toast（0.1.6 回归）', !document.body.textContent.includes('操作失败'), 'toast absent');
     const modal = document.querySelector('[${MODAL_ATTR}]');
     check('modal: 确认弹窗出现', modal !== null, modal ? 'ok' : 'no modal host');
     const text = modal ? modal.textContent : '';
